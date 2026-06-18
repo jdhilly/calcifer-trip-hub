@@ -49,16 +49,32 @@ def cmd_artifacts(args):
 
 
 def cmd_list_toggle(args):
-    """Toggle a checklist item checked/unchecked"""
+    """Set a checklist item's checked count"""
     conn = get_db()
     item = conn.execute("SELECT * FROM lists WHERE id = ?", (args.item_id,)).fetchone()
     if not item:
         return {"ok": False, "error": "Item not found"}
-    new_val = 0 if item['checked'] else 1
+    checked = min(args.checked, item['quantity'])
     conn.execute("UPDATE lists SET checked = ?, updated_at = datetime('now') WHERE id = ?",
-                 (new_val, args.item_id))
+                 (checked, args.item_id))
     conn.commit()
-    return {"ok": True, "checked": bool(new_val)}
+    return {"ok": True, "checked": checked}
+
+
+def cmd_list_update(args):
+    """Update a checklist item's quantity (and cap checked if needed)"""
+    conn = get_db()
+    item = conn.execute("SELECT * FROM lists WHERE id = ?", (args.item_id,)).fetchone()
+    if not item:
+        return {"ok": False, "error": "Item not found"}
+    new_qty = args.quantity
+    new_checked = min(item['checked'], new_qty)
+    conn.execute(
+        "UPDATE lists SET quantity = ?, checked = ?, updated_at = datetime('now') WHERE id = ?",
+        (new_qty, new_checked, args.item_id)
+    )
+    conn.commit()
+    return {"ok": True, "quantity": new_qty, "checked": new_checked}
 
 
 def cmd_list_add(args):
@@ -198,7 +214,13 @@ if __name__ == '__main__':
 
     p = sub.add_parser('list-toggle')
     p.add_argument('item_id', type=int)
+    p.add_argument('--checked', type=int, default=0)
     p.set_defaults(func=cmd_list_toggle)
+
+    p = sub.add_parser('list-update')
+    p.add_argument('item_id', type=int)
+    p.add_argument('--quantity', type=int, required=True)
+    p.set_defaults(func=cmd_list_update)
 
     p = sub.add_parser('list-add')
     p.add_argument('trip_id')

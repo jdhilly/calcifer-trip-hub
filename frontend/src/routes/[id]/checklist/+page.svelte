@@ -52,6 +52,19 @@
 		return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
 	});
 
+	// Progress stats from ALL items (not filtered), so category colors are always correct
+	let categoryProgress = $derived.by(() => {
+		const map = new Map<string, { done: number; total: number }>();
+		for (const item of items) {
+			const cat = item.category || 'Sans catégorie';
+			const cur = map.get(cat) ?? { done: 0, total: 0 };
+			cur.done += item.checked || 0;
+			cur.total += item.quantity || 1;
+			map.set(cat, cur);
+		}
+		return map;
+	});
+
 	// --- Catalogue modal ---
 	function toggleCatExpanded(cat: string) {
 		const next = new Set(expandedCats);
@@ -85,12 +98,39 @@
 	async function toggle(itemId: number, delta: number) {
 		const item = items.find((i: any) => i.id === itemId);
 		if (!item) return;
-		item.checked = Math.max(0, Math.min(item.quantity || 1, (item.checked || 0) + delta));
+		const newChecked = Math.max(0, Math.min(item.quantity || 1, (item.checked || 0) + delta));
+		item.checked = newChecked;
 		items = [...items];
 		await fetch(`/${trip.id}/checklist?/toggle`, {
 			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ itemId: String(itemId) })
+			body: new URLSearchParams({ itemId: String(itemId), checked: String(newChecked) })
 		});
+	}
+
+	let editQtyId = $state<number | null>(null);
+	let editQtyVal = $state(1);
+
+	function startEdit(itemId: number, current: number) {
+		editQtyId = itemId;
+		editQtyVal = current;
+	}
+
+	async function saveEdit(itemId: number) {
+		const qty = Math.max(1, editQtyVal);
+		const item = items.find((i: any) => i.id === itemId);
+		if (!item) return;
+		item.quantity = qty;
+		if (item.checked > qty) item.checked = qty;
+		items = [...items];
+		editQtyId = null;
+		await fetch(`/${trip.id}/checklist?/update`, {
+			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ itemId: String(itemId), quantity: String(qty) })
+		});
+	}
+
+	function cancelEdit() {
+		editQtyId = null;
 	}
 
 	async function removeItem(itemId: number) {
@@ -153,6 +193,11 @@
 			body: new URLSearchParams({ items: JSON.stringify(items) })
 		});
 		showCatalog = false; window.location.reload();
+	}
+
+	function focusMe(node: HTMLInputElement) {
+		node.focus();
+		node.select();
 	}
 </script>
 
@@ -242,9 +287,8 @@
 
 	<div class="space-y-1">
 		{#each filteredCategories as [category, catItems]}
-			{@const catDone = catItems.reduce((s: number, i: any) => s + (i.checked || 0), 0)}
-			{@const catTotal = catItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0)}
-			{@const catPct = catTotal > 0 ? Math.round((catDone / catTotal) * 100) : 0}
+			{@const prog = categoryProgress.get(category) ?? { done: 0, total: 0 }}
+			{@const catPct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0}
 			{@const isExpanded = checklistExpanded.has(category)}
 			<div>
 				<!-- Category header (clickable to fold/unfold) -->
@@ -260,7 +304,7 @@
 					class="font-display text-base"
 					style="background: linear-gradient(to right, #f97316 0%, #f97316 {catPct}%, #d4d4d4 {catPct}%, #d4d4d4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;"
 				>{category}</span>
-					<span class="ml-auto text-xs text-coal-500">{catDone}/{catTotal}</span>
+					<span class="ml-auto text-xs text-coal-500">{prog.done}/{prog.total}</span>
 				</button>
 
 				<!-- Items (visible only when expanded) -->
@@ -272,8 +316,20 @@
 									<div class="flex items-center gap-0.5">
 										<button onclick={() => toggle(item.id, -1)} disabled={(item.checked || 0) <= 0}
 											class="flex h-6 w-6 items-center justify-center rounded-l border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Minus size={12} /></button>
-										<div class="flex h-6 items-center border-y border-coal-700 px-2 text-xs font-medium {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}">{item.checked || 0}/{item.quantity}</div>
-										<button onclick={() => toggle(item.id, 1)} disabled={(item.checked || 0) >= (item.quantity || 1)}
+																				{#if editQtyId === item.id}
+																				<input
+																				type="number" min="1" bind:value={editQtyVal}
+																				onkeydown={(e: any) => { if (e.key === 'Enter') saveEdit(item.id); if (e.key === 'Escape') cancelEdit(); }}
+																				onblur={() => saveEdit(item.id)}
+																				use:focusMe
+																				class="h-6 w-14 rounded border border-ember-500 bg-coal-800 px-1 text-center text-xs font-medium text-ember-400 outline-none"
+																				/>
+																				{:else}
+																				<button onclick={() => startEdit(item.id, item.quantity)}
+																				class="flex h-6 cursor-text items-center border-y border-coal-700 px-2 text-xs font-medium transition-colors hover:border-ember-500 {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}"
+																				>{item.checked || 0}/{item.quantity}</button>
+																				{/if}
+																				<button onclick={() => toggle(item.id, 1)} disabled={(item.checked || 0) >= (item.quantity || 1)}
 											class="flex h-6 w-6 items-center justify-center rounded-r border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Plus size={12} /></button>
 									</div>
 									<span class="flex-1 text-sm text-coal-100">{item.label}</span>

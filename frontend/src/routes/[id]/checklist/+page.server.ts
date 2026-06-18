@@ -14,8 +14,11 @@ export const actions = {
 	toggle: async ({ request }) => {
 		const fd = await request.formData();
 		const itemId = fd.get('itemId');
+		const checked = fd.get('checked');
 		if (!itemId) return fail(400, { error: 'Missing itemId' });
-		return cliAction('list-toggle', String(itemId));
+		const args = ['list-toggle', String(itemId)];
+		if (checked) args.push('--checked', String(checked));
+		return cliAction(...args);
 	},
 
 	add: async ({ request, params }) => {
@@ -43,5 +46,13 @@ export const actions = {
 		if (!raw) return fail(400, { error: 'Missing items' });
 		const b64 = Buffer.from(raw.toString()).toString('base64');
 		return cliAction('list-import', params.id, b64);
-	}
+	},
+
+	update: async ({ request }) => {
+		const fd = await request.formData();
+		const itemId = fd.get('itemId');
+		const quantity = fd.get('quantity');
+		if (!itemId || !quantity) return fail(400, { error: 'Missing itemId or quantity' });
+		return cliAction('list-update', String(itemId), '--quantity', String(quantity));
+	},
 };
