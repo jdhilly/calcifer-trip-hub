@@ -39,6 +39,38 @@ def cmd_catalog(args):
     return [dict(r) for r in rows]
 
 
+def cmd_catalog_update(args):
+    conn = get_db()
+    item = conn.execute("SELECT * FROM catalog WHERE id = ?", (args.item_id,)).fetchone()
+    if not item:
+        return {"ok": False, "error": "Catalog item not found"}
+    updates = []
+    params = []
+    if args.name is not None:
+        updates.append("name = ?")
+        params.append(args.name)
+    if args.category is not None:
+        updates.append("category = ?")
+        params.append(args.category)
+    if args.default_quantity is not None:
+        updates.append("default_quantity = ?")
+        params.append(args.default_quantity)
+    if not updates:
+        return {"ok": True, "message": "No changes"}
+    updates.append("updated_at = datetime('now')")
+    params.append(args.item_id)
+    conn.execute(f"UPDATE catalog SET {', '.join(updates)} WHERE id = ?", params)
+    conn.commit()
+    return {"ok": True}
+
+
+def cmd_catalog_remove(args):
+    conn = get_db()
+    conn.execute("DELETE FROM catalog WHERE id = ?", (args.item_id,))
+    conn.commit()
+    return {"ok": True}
+
+
 def cmd_artifacts(args):
     conn = get_db()
     rows = conn.execute(
@@ -207,6 +239,17 @@ if __name__ == '__main__':
 
     p = sub.add_parser('catalog')
     p.set_defaults(func=cmd_catalog)
+
+    p = sub.add_parser('catalog-update')
+    p.add_argument('item_id', type=int)
+    p.add_argument('--name', default=None)
+    p.add_argument('--category', default=None)
+    p.add_argument('--default-quantity', type=int, default=None)
+    p.set_defaults(func=cmd_catalog_update)
+
+    p = sub.add_parser('catalog-remove')
+    p.add_argument('item_id', type=int)
+    p.set_defaults(func=cmd_catalog_remove)
 
     p = sub.add_parser('artifacts')
     p.add_argument('trip_id')
