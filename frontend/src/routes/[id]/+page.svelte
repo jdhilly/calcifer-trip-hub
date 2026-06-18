@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PageHeader } from '@calcifer/ui';
-	import { ArrowRight, ListChecks, Users, FileText, BookOpen, Luggage, Check } from '@lucide/svelte/icons';
+	import { ListChecks, Users, FileText, BookOpen, Luggage } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
@@ -57,25 +57,5 @@
 			{/each}
 		</div>
 
-		{#if items.length > 0}
-			<h2 class="mb-3 mt-8 font-display text-lg text-coal-300">Articles dans la checklist</h2>
-			<div class="space-y-2">
-				{#each items.slice(0, 10) as item}
-					<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-3">
-						<div class="flex items-center gap-3">
-							{#if item.checked}
-								<Check size={18} class="text-ember-400" />
-							{:else}
-								<span class="inline-block h-[18px] w-[18px] rounded border-2 border-coal-600"></span>
-							{/if}
-							<div>
-								<p class={['text-sm', item.checked ? 'text-coal-500 line-through' : 'text-coal-100']}>{item.label}</p>
-								<p class="text-xs text-coal-500">{item.category}</p>
-							</div>
-						</div>
-					</div>
-				{/each}
-			</div>
 		{/if}
-	{/if}
 </div>
