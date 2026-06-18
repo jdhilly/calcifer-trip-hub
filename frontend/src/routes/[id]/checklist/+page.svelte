@@ -1,21 +1,11 @@
 <script lang="ts">
 	import { PageHeader, Button } from '@calcifer/ui';
-	import { Plus, X, Library, Minus, Check, Square, ListChecks, Luggage } from '@lucide/svelte/icons';
+	import { Plus, X, Library, Minus, Check, Square, ListChecks, Luggage, Search, ChevronRight } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
 	let items = $state(data.trip.items ?? []);
 	let allCatalog = $state(data.catalog ?? []);
-
-	let categories = $derived.by(() => {
-		const map = new Map<string, typeof items>();
-		for (const item of items) {
-			const cat = item.category || 'Sans catégorie';
-			if (!map.has(cat)) map.set(cat, []);
-			map.get(cat)!.push(item);
-		}
-		return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-	});
 
 	let total = $derived(items.reduce((s: number, i: any) => s + (i.quantity || 1), 0));
 	let depart = $derived(items.reduce((s: number, i: any) => s + (i.checked || 0), 0));
@@ -32,6 +22,37 @@
 	let expandedCats = $state<Set<string>>(new Set());
 	let catSearch = $state('');
 
+	// --- Checklist search / filter ---
+	let checklistSearch = $state('');
+	let checklistFilter = $state<'all' | 'checked' | 'unchecked'>('all');
+	let checklistExpanded = $state<Set<string>>(new Set());
+
+	function toggleChecklistCat(cat: string) {
+		const next = new Set(checklistExpanded);
+		if (next.has(cat)) next.delete(cat); else next.add(cat);
+		checklistExpanded = next;
+	}
+
+	let filteredItems = $derived.by(() => {
+		let out = items;
+		const q = checklistSearch.trim().toLowerCase();
+		if (q) out = out.filter((i: any) => i.label.toLowerCase().includes(q));
+		if (checklistFilter === 'checked') out = out.filter((i: any) => (i.checked || 0) >= (i.quantity || 1));
+		if (checklistFilter === 'unchecked') out = out.filter((i: any) => (i.checked || 0) < (i.quantity || 1));
+		return out;
+	});
+
+	let filteredCategories = $derived.by(() => {
+		const map = new Map<string, typeof items>();
+		for (const item of filteredItems) {
+			const cat = item.category || 'Sans catégorie';
+			if (!map.has(cat)) map.set(cat, []);
+			map.get(cat)!.push(item);
+		}
+		return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+	});
+
+	// --- Catalogue modal ---
 	function toggleCatExpanded(cat: string) {
 		const next = new Set(expandedCats);
 		if (next.has(cat)) next.delete(cat); else next.add(cat);
@@ -177,33 +198,101 @@
 		</div>
 	{/if}
 
-	<div class="space-y-4">
-		{#each categories as [category, catItems]}
+	<!-- Search + filter bar -->
+	<div class="mb-4 flex flex-wrap items-center gap-2">
+		<div class="relative flex-1 min-w-0">
+			<Search size={14} class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-coal-500" />
+			<input
+				type="text"
+				bind:value={checklistSearch}
+				placeholder="Rechercher dans la checklist…"
+				class="w-full rounded-lg border border-coal-700 bg-coal-900 py-2 pl-8 pr-3 text-sm text-coal-50 outline-none placeholder:text-coal-500 focus:border-ember-500"
+			/>
+		</div>
+		<div class="flex gap-1">
+			<button
+				onclick={() => checklistFilter = 'all'}
+				class="rounded-lg border px-2.5 py-1.5 text-xs transition-colors
+					{checklistFilter === 'all'
+						? 'border-ember-500 bg-ember-500/20 text-ember-400'
+						: 'border-coal-700 text-coal-400 hover:border-coal-500 hover:text-coal-300'}"
+			>Tout</button>
+			<button
+				onclick={() => checklistFilter = 'checked'}
+				class="rounded-lg border px-2.5 py-1.5 text-xs transition-colors
+					{checklistFilter === 'checked'
+						? 'border-ember-500 bg-ember-500/20 text-ember-400'
+						: 'border-coal-700 text-coal-400 hover:border-coal-500 hover:text-coal-300'}"
+			>Cochés</button>
+			<button
+				onclick={() => checklistFilter = 'unchecked'}
+				class="rounded-lg border px-2.5 py-1.5 text-xs transition-colors
+					{checklistFilter === 'unchecked'
+						? 'border-ember-500 bg-ember-500/20 text-ember-400'
+						: 'border-coal-700 text-coal-400 hover:border-coal-500 hover:text-coal-300'}"
+			>Non cochés</button>
+		</div>
+	</div>
+
+	{#if checklistSearch || checklistFilter !== 'all'}
+		<p class="mb-3 text-xs text-coal-500">
+			{filteredItems.length} résultat{filteredItems.length > 1 ? 's' : ''} sur {items.length}
+		</p>
+	{/if}
+
+	<div class="space-y-1">
+		{#each filteredCategories as [category, catItems]}
+			{@const catDone = catItems.reduce((s: number, i: any) => s + (i.checked || 0), 0)}
+			{@const catTotal = catItems.reduce((s: number, i: any) => s + (i.quantity || 1), 0)}
+			{@const catPct = catTotal > 0 ? Math.round((catDone / catTotal) * 100) : 0}
+			{@const isExpanded = checklistExpanded.has(category)}
 			<div>
-				<h3 class="mb-2 font-display text-base text-coal-300">{category}</h3>
-				<div class="space-y-2">
-					{#each catItems as item (item.id)}
-						<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-3 transition-all duration-200 hover:border-ember-500/30">
-							<div class="flex items-center gap-3">
-								<div class="flex items-center gap-0.5">
-									<button onclick={() => toggle(item.id, -1)} disabled={(item.checked || 0) <= 0}
-										class="flex h-6 w-6 items-center justify-center rounded-l border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Minus size={12} /></button>
-									<div class="flex h-6 items-center border-y border-coal-700 px-2 text-xs font-medium {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}">{item.checked || 0}/{item.quantity}</div>
-									<button onclick={() => toggle(item.id, 1)} disabled={(item.checked || 0) >= (item.quantity || 1)}
-										class="flex h-6 w-6 items-center justify-center rounded-r border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Plus size={12} /></button>
+				<!-- Category header (clickable to fold/unfold) -->
+				<button
+					onclick={() => toggleChecklistCat(category)}
+					class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-coal-800/40"
+				>
+					<ChevronRight
+						size={14}
+						class="shrink-0 text-coal-500 transition-transform {isExpanded ? 'rotate-90' : ''}"
+					/>
+					<span
+					class="font-display text-base"
+					style="background: linear-gradient(to right, #f97316 0%, #f97316 {catPct}%, #d4d4d4 {catPct}%, #d4d4d4 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;"
+				>{category}</span>
+					<span class="ml-auto text-xs text-coal-500">{catDone}/{catTotal}</span>
+				</button>
+
+				<!-- Items (visible only when expanded) -->
+				{#if isExpanded}
+					<div class="ml-5 space-y-2 pb-3">
+						{#each catItems as item (item.id)}
+							<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-3 transition-all duration-200 hover:border-ember-500/30">
+								<div class="flex items-center gap-3">
+									<div class="flex items-center gap-0.5">
+										<button onclick={() => toggle(item.id, -1)} disabled={(item.checked || 0) <= 0}
+											class="flex h-6 w-6 items-center justify-center rounded-l border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Minus size={12} /></button>
+										<div class="flex h-6 items-center border-y border-coal-700 px-2 text-xs font-medium {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}">{item.checked || 0}/{item.quantity}</div>
+										<button onclick={() => toggle(item.id, 1)} disabled={(item.checked || 0) >= (item.quantity || 1)}
+											class="flex h-6 w-6 items-center justify-center rounded-r border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Plus size={12} /></button>
+									</div>
+									<span class="flex-1 text-sm text-coal-100">{item.label}</span>
+									<button onclick={() => removeItem(item.id)} class="text-coal-600 hover:text-red-400 transition-colors"><X size={14} /></button>
 								</div>
-								<span class="flex-1 text-sm text-coal-100">{item.label}</span>
-								<button onclick={() => removeItem(item.id)} class="text-coal-600 hover:text-red-400 transition-colors"><X size={14} /></button>
 							</div>
-						</div>
-					{/each}
-				</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
 
 	{#if items.length === 0}
 		<p class="mt-8 text-center text-coal-500">Checklist vide.</p>
+	{/if}
+
+	{#if items.length > 0 && filteredItems.length === 0}
+		<p class="mt-8 text-center text-coal-500">Aucun article ne correspond à votre recherche.</p>
 	{/if}
 </div>
 
