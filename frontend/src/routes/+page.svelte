@@ -17,9 +17,6 @@
 		return active.length > 0 ? active[0] : (trips.length > 0 ? trips[0] : null);
 	});
 
-	let pastTrips = $derived(trips.filter((t: any) => new Date(t.end_date) < new Date()));
-	let futureTrips = $derived(trips.filter((t: any) => new Date(t.end_date) >= new Date()));
-
 	function formatDate(d: string): string {
 		return new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 	}
@@ -29,23 +26,12 @@
 		return new Date(t.start_date) <= now && new Date(t.end_date) >= now;
 	}
 
-	function isPast(t: any): boolean {
-		return new Date(t.end_date) < new Date();
-	}
-
 	function isFuture(t: any): boolean {
 		return new Date(t.start_date) > new Date();
 	}
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6">
-	{#if !online}
-		<div class="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
-			<span class="h-2 w-2 rounded-full bg-amber-500"></span>
-			Hors ligne — les données affichées sont celles de la dernière synchronisation
-		</div>
-	{/if}
-
 	<PageHeader title="Voyages" description="Préparez vos valises et ne rien oublier" />
 
 	{#if trips.length === 0}
@@ -58,21 +44,24 @@
 				<h2 class="font-display text-xl text-ember-500">
 					{isOngoing(upcoming) ? '🔄 En cours' : '⬆️ Prochain voyage'}
 				</h2>
-				<Card variant="interactive" href={`/${upcoming.id}`} padding="p-5" class="mt-2">
-					<div class="flex items-center gap-3">
-						<IconBadge size="md" interactive>
-							<Calendar size={20} aria-hidden="true" />
-						</IconBadge>
-						<div class="flex-1">
-							<h3 class="font-semibold text-coal-50">{upcoming.destination}</h3>
-							<p class="text-sm text-coal-400">
-								{formatDate(upcoming.start_date)}
-								<ArrowRight size={14} class="inline" />
-								{formatDate(upcoming.end_date)}
-							</p>
+
+				<a href={`/${upcoming.id}`} class="group mt-2 block">
+					<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70 hover:shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--color-ember-600)_55%,transparent)]">
+						<div class="flex items-center gap-3">
+							<span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ember-500/10 text-ember-300 ring-1 ring-ember-500/20 transition-all duration-300 group-hover:scale-105 group-hover:bg-ember-500/18 group-hover:text-ember-200 group-hover:ring-ember-500/40 group-hover:drop-shadow-[0_0_8px_var(--color-ember-500)]">
+								<Calendar size={20} aria-hidden="true" />
+							</span>
+							<div class="flex-1">
+								<h3 class="font-semibold text-coal-50">{upcoming.destination}</h3>
+								<p class="text-sm text-coal-400">
+									{formatDate(upcoming.start_date)}
+									<ArrowRight size={14} class="inline" />
+									{formatDate(upcoming.end_date)}
+								</p>
+							</div>
 						</div>
 					</div>
-				</Card>
+				</a>
 			</div>
 		{/if}
 
@@ -80,33 +69,35 @@
 			<h2 class="font-display text-lg text-coal-300">Tous les voyages</h2>
 			<div class="mt-3 space-y-3">
 				{#each trips as trip}
-					<Card variant="interactive" href={`/${trip.id}`} padding="p-4">
-						<div class="flex items-start gap-3">
-							<div class="flex-1">
-								<h3 class="font-semibold text-coal-50">{trip.destination}</h3>
-								<p class="text-sm text-coal-400">
-									{formatDate(trip.start_date)}
-									<ArrowRight size={14} class="inline" />
-									{formatDate(trip.end_date)}
-								</p>
-							</div>
-							<div class="flex items-center gap-2 text-xs">
-								{#if isOngoing(trip)}
-									<span class="flex items-center gap-1 text-ember-500">
-										<Check size={14} /> En cours
-									</span>
-								{:else if isFuture(trip)}
-									<span class="flex items-center gap-1 text-ember-400">
-										<Calendar size={14} /> À venir
-									</span>
-								{:else}
-									<span class="flex items-center gap-1 text-coal-500">
-										<X size={14} /> Terminé
-									</span>
-								{/if}
+					<a href={`/${trip.id}`} class="group block">
+						<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70 hover:shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--color-ember-600)_55%,transparent)]">
+							<div class="flex items-start gap-3">
+								<div class="flex-1">
+									<h3 class="font-semibold text-coal-50">{trip.destination}</h3>
+									<p class="text-sm text-coal-400">
+										{formatDate(trip.start_date)}
+										<ArrowRight size={14} class="inline" />
+										{formatDate(trip.end_date)}
+									</p>
+								</div>
+								<div class="flex items-center gap-2 text-xs">
+									{#if isOngoing(trip)}
+										<span class="flex items-center gap-1 text-ember-500">
+											<Check size={14} /> En cours
+										</span>
+									{:else if isFuture(trip)}
+										<span class="flex items-center gap-1 text-ember-400">
+											<Calendar size={14} /> À venir
+										</span>
+									{:else}
+										<span class="flex items-center gap-1 text-coal-500">
+											<X size={14} /> Terminé
+										</span>
+									{/if}
+								</div>
 							</div>
 						</div>
-					</Card>
+					</a>
 				{/each}
 			</div>
 		</div>
