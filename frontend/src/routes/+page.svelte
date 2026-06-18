@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { PageHeader, Card, Button, IconBadge } from '@calcifer/ui';
-	import { Calendar, ArrowRight, Check, X, Library } from '@lucide/svelte/icons';
+	import { PageHeader } from '@calcifer/ui';
+	import { Calendar, ArrowRight, Check, X, Compass, ArrowUp, RotateCw } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trips = $state(data.trips);
@@ -35,21 +34,25 @@
 	<PageHeader title="Voyages" description="Préparez vos valises et ne rien oublier" />
 
 	{#if trips.length === 0}
-		<Card variant="static" surface={40} padding="p-8" class="mt-6 text-center">
+		<div class="mt-6 rounded-2xl border border-coal-800 bg-coal-900/55 p-8 text-center">
 			<p class="text-coal-400">Aucun voyage pour l'instant.</p>
-		</Card>
+		</div>
 	{:else}
 		{#if upcoming}
 			<div class="mt-6">
 				<h2 class="font-display text-xl text-ember-500">
-					{isOngoing(upcoming) ? '🔄 En cours' : '⬆️ Prochain voyage'}
+					{#if isOngoing(upcoming)}
+						<RotateCw size={18} class="inline" /> En cours
+					{:else}
+						<ArrowUp size={18} class="inline" /> Prochain voyage
+					{/if}
 				</h2>
 
 				<a href={`/${upcoming.id}`} class="group mt-2 block">
-					<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70 hover:shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--color-ember-600)_55%,transparent)]">
+					<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70">
 						<div class="flex items-center gap-3">
-							<span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ember-500/10 text-ember-300 ring-1 ring-ember-500/20 transition-all duration-300 group-hover:scale-105 group-hover:bg-ember-500/18 group-hover:text-ember-200 group-hover:ring-ember-500/40 group-hover:drop-shadow-[0_0_8px_var(--color-ember-500)]">
-								<Calendar size={20} aria-hidden="true" />
+							<span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-ember-500/10 text-ember-300 ring-1 ring-ember-500/20 transition-all duration-300 group-hover:scale-105 group-hover:ring-ember-500/40">
+								<Calendar size={20} />
 							</span>
 							<div class="flex-1">
 								<h3 class="font-semibold text-coal-50">{upcoming.destination}</h3>
@@ -70,7 +73,7 @@
 			<div class="mt-3 space-y-3">
 				{#each trips as trip}
 					<a href={`/${trip.id}`} class="group block">
-						<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70 hover:shadow-[0_18px_50px_-20px_color-mix(in_oklab,var(--color-ember-600)_55%,transparent)]">
+						<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-ember-500/45 hover:bg-coal-900/70">
 							<div class="flex items-start gap-3">
 								<div class="flex-1">
 									<h3 class="font-semibold text-coal-50">{trip.destination}</h3>
@@ -82,17 +85,11 @@
 								</div>
 								<div class="flex items-center gap-2 text-xs">
 									{#if isOngoing(trip)}
-										<span class="flex items-center gap-1 text-ember-500">
-											<Check size={14} /> En cours
-										</span>
+										<span class="flex items-center gap-1 text-ember-500"><Check size={14} /> En cours</span>
 									{:else if isFuture(trip)}
-										<span class="flex items-center gap-1 text-ember-400">
-											<Calendar size={14} /> À venir
-										</span>
+										<span class="flex items-center gap-1 text-ember-400"><Calendar size={14} /> À venir</span>
 									{:else}
-										<span class="flex items-center gap-1 text-coal-500">
-											<X size={14} /> Terminé
-										</span>
+										<span class="flex items-center gap-1 text-coal-500"><X size={14} /> Terminé</span>
 									{/if}
 								</div>
 							</div>

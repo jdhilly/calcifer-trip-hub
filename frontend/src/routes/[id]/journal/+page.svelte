@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PageHeader, Button } from '@calcifer/ui';
-	import { Plus, X } from '@lucide/svelte/icons';
+	import { Plus, X, BookOpen } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
@@ -12,21 +12,15 @@
 
 	async function addEntry() {
 		if (!newContent.trim()) return;
-		const r = await fetch('/' + trip.id + '/journal?/add', {
-			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ content: newContent.trim(), date: newDate, author: newAuthor.trim() })
-		});
+		const r = await fetch('/' + trip.id + '/journal?/add', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({content:newContent.trim(),date:newDate,author:newAuthor.trim()}) });
 		if ((await r.json()).ok) window.location.reload();
 	}
 	async function delEntry(id: number) {
 		if (!confirm('Supprimer ?')) return;
-		const r = await fetch('/' + trip.id + '/journal?/delete', {
-			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ entryId: String(id) })
-		});
-		if ((await r.json()).ok) entries = entries.filter((e: any) => e.id !== id);
+		const r = await fetch('/' + trip.id + '/journal?/delete', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({entryId:String(id)}) });
+		if ((await r.json()).ok) entries = entries.filter((e:any) => e.id !== id);
 	}
-	function fmtDate(d: string) { return new Date(d+'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+	function fmtDate(d: string) { return new Date(d+'T12:00:00').toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' }); }
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6">
@@ -55,6 +49,7 @@
 				<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-4">
 					<div class="mb-2 flex items-center justify-between">
 						<div class="flex items-center gap-2">
+							<BookOpen size={16} class="shrink-0 text-coal-500" />
 							<span class="font-display text-base text-coal-50">{fmtDate(entry.date)}</span>
 							{#if entry.author}<span class="rounded bg-coal-800 px-2 py-0.5 text-xs text-coal-400">{entry.author}</span>{/if}
 						</div>

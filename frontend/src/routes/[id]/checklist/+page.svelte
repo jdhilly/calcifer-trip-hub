@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PageHeader, Button } from '@calcifer/ui';
-	import { Plus, X, Library, Minus } from '@lucide/svelte/icons';
+	import { Plus, X, Library, Minus, Check, Square, ListChecks, Luggage } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
@@ -21,13 +21,11 @@
 	let depart = $derived(items.reduce((s: number, i: any) => s + (i.checked || 0), 0));
 	let pct = $derived(total > 0 ? Math.round((depart / total) * 100) : 0);
 
-	// New item form
 	let showAdd = $state(false);
 	let newCat = $state('');
 	let newLabel = $state('');
 	let newQty = $state(1);
 
-	// Catalog import
 	let showCatalog = $state(false);
 	let selIds = $state<Set<number>>(new Set());
 	let selQtys = $state<Record<number, number>>({});
@@ -48,8 +46,7 @@
 		item.checked = Math.max(0, Math.min(item.quantity || 1, (item.checked || 0) + delta));
 		items = [...items];
 		await fetch(`/${trip.id}/checklist?/toggle`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({ itemId: String(itemId) })
 		});
 	}
@@ -57,8 +54,7 @@
 	async function removeItem(itemId: number) {
 		items = items.filter((i: any) => i.id !== itemId);
 		await fetch(`/${trip.id}/checklist?/remove`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({ itemId: String(itemId) })
 		});
 	}
@@ -66,26 +62,22 @@
 	async function addItem() {
 		if (!newLabel.trim()) return;
 		const r = await fetch(`/${trip.id}/checklist?/add`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 			body: new URLSearchParams({ label: newLabel.trim(), category: newCat.trim(), quantity: String(newQty) })
 		});
 		if ((await r.json()).ok) window.location.reload();
 	}
 
 	function openCatalog() {
-		selIds = new Set();
-		selQtys = {};
+		selIds = new Set(); selQtys = {};
 		for (const item of allCatalog) selQtys[item.id] = item.default_quantity || 1;
 		showCatalog = true;
 	}
-
 	function toggleSel(id: number) {
 		const next = new Set(selIds);
 		if (next.has(id)) next.delete(id); else next.add(id);
 		selIds = next;
 	}
-
 	async function importSelected() {
 		const ids = [...selIds];
 		if (ids.length === 0) return;
@@ -93,23 +85,20 @@
 			const item = allCatalog.find((c: any) => c.id === id);
 			if (!item) continue;
 			await fetch(`/${trip.id}/checklist?/add`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: new URLSearchParams({ label: item.name, category: item.category || '', quantity: String(selQtys[id] || item.default_quantity || 1) })
 			});
 		}
-		showCatalog = false;
-		window.location.reload();
+		showCatalog = false; window.location.reload();
 	}
 </script>
 
 <div class="mx-auto max-w-4xl px-4 py-6">
 	<PageHeader title={trip.destination} backHref={`/${trip.id}`} description="Checklist" />
 
-	<!-- Progress -->
 	<div class="mb-6">
 		<div class="flex items-center justify-between text-xs text-coal-400">
-			<span>Départ 🧳</span>
+			<span><Luggage size={14} class="inline" /> Départ</span>
 			<span>{depart}/{total} ({pct}%)</span>
 		</div>
 		<div class="mt-1 h-2 w-full rounded-full bg-coal-800">
@@ -117,7 +106,6 @@
 		</div>
 	</div>
 
-	<!-- Actions -->
 	<div class="mb-6 flex flex-wrap gap-2">
 		<button onclick={() => (showAdd = !showAdd)}
 			class="inline-flex items-center gap-1.5 rounded-lg border border-coal-700 bg-coal-900 px-3 py-1.5 text-xs text-coal-300 transition-colors hover:border-ember-500 hover:text-ember-400">
@@ -147,7 +135,6 @@
 		</div>
 	{/if}
 
-	<!-- Items -->
 	<div class="space-y-4">
 		{#each categories as [category, catItems]}
 			<div>
@@ -159,8 +146,7 @@
 								<div class="flex items-center gap-0.5">
 									<button onclick={() => toggle(item.id, -1)} disabled={(item.checked || 0) <= 0}
 										class="flex h-6 w-6 items-center justify-center rounded-l border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Minus size={12} /></button>
-									<div class="flex h-6 items-center border-y border-coal-700 px-2 text-xs font-medium {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}">
-										{item.checked || 0}/{item.quantity}</div>
+									<div class="flex h-6 items-center border-y border-coal-700 px-2 text-xs font-medium {(item.checked || 0) > 0 ? 'bg-ember-500/20 text-ember-400' : 'text-coal-400'}">{item.checked || 0}/{item.quantity}</div>
 									<button onclick={() => toggle(item.id, 1)} disabled={(item.checked || 0) >= (item.quantity || 1)}
 										class="flex h-6 w-6 items-center justify-center rounded-r border border-coal-700 text-coal-400 transition-colors hover:border-ember-500 hover:text-ember-400 disabled:opacity-30"><Plus size={12} /></button>
 								</div>
@@ -179,7 +165,6 @@
 	{/if}
 </div>
 
-<!-- Catalog overlay -->
 {#if showCatalog}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onclick={() => showCatalog = false} role="presentation">
 		<div class="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-coal-700 bg-coal-950 p-5 shadow-2xl" onclick={(e) => e.stopPropagation()} role="dialog">
@@ -197,10 +182,10 @@
 										<span class="flex-1 text-sm text-coal-100">{item.name}</span>
 										<div class="flex items-center gap-1">
 											<button onclick={() => { if ((selQtys[item.id] ?? 1) > 1) selQtys[item.id]--; }}
-												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500 text-sm">−</button>
+												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">−</button>
 											<span class="w-6 text-center text-xs text-coal-200">{selQtys[item.id] ?? item.default_quantity ?? 1}</span>
 											<button onclick={() => selQtys[item.id] = (selQtys[item.id] ?? item.default_quantity ?? 1) + 1}
-												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500 text-sm">+</button>
+												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">+</button>
 										</div>
 									</div>
 								{/each}

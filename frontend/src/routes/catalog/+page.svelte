@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { PageHeader } from '@calcifer/ui';
+	import { Library } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let items = $derived(data.items);
@@ -24,7 +25,8 @@
 				<div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
 					{#each catItems as item}
 						<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-3">
-							<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<Library size={16} class="shrink-0 text-coal-500" />
 								<div>
 									<p class="text-sm text-coal-100">{item.name}</p>
 									<p class="text-xs text-coal-500">×{item.default_quantity}</p>

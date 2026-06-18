@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PageHeader, Button, IconBadge } from '@calcifer/ui';
-	import { Sparkles } from '@lucide/svelte/icons';
+	import { Sparkles, Download } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
@@ -23,10 +23,7 @@
 	async function gen(type: string) {
 		generating = type;
 		try {
-			const r = await fetch('/' + trip.id + '/briefing?/generate', {
-				method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: new URLSearchParams({ type })
-			});
+			const r = await fetch('/' + trip.id + '/briefing?/generate', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({type}) });
 			const result = await r.json();
 			if (result.ok) window.location.reload(); else alert('Erreur: ' + (result.error || 'Inconnue'));
 		} catch (e: any) { alert('Erreur réseau: ' + e.message); }
@@ -74,8 +71,11 @@
 								</p>
 							</div>
 						</div>
-						{#if a.file_path}<a href={a.file_path} target="_blank"
-							class="rounded-lg border border-coal-700 bg-coal-900 px-3 py-1.5 text-xs text-coal-300 hover:border-ember-500 hover:text-ember-400">Télécharger</a>{/if}
+						{#if a.file_path}
+							<a href={a.file_path} target="_blank" class="rounded-lg border border-coal-700 bg-coal-900 px-3 py-1.5 text-xs text-coal-300 hover:border-ember-500 hover:text-ember-400 inline-flex items-center gap-1">
+								<Download size={12} /> Télécharger
+							</a>
+						{/if}
 					</div>
 				</div>
 			{/each}
