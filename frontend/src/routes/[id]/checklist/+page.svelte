@@ -29,6 +29,27 @@
 	let showCatalog = $state(false);
 	let selIds = $state<Set<number>>(new Set());
 	let selQtys = $state<Record<number, number>>({});
+	let expandedCats = $state<Set<string>>(new Set());
+	let catSearch = $state('');
+
+	function toggleCatExpanded(cat: string) {
+		const next = new Set(expandedCats);
+		if (next.has(cat)) next.delete(cat); else next.add(cat);
+		expandedCats = next;
+	}
+
+	let isSearching = $derived(catSearch.trim().length > 0);
+
+	let filteredCatalog = $derived.by(() => {
+		if (!isSearching) return catalogByCat;
+		const q = catSearch.trim().toLowerCase();
+		const out: Record<string, typeof allCatalog> = {};
+		for (const [cat, items] of Object.entries(catalogByCat)) {
+			const matched = items.filter((i: any) => i.name.toLowerCase().includes(q));
+			if (matched.length > 0) out[cat] = matched;
+		}
+		return out;
+	});
 
 	let catalogByCat = $derived.by(() => {
 		const g: Record<string, typeof allCatalog> = {};
@@ -69,6 +90,7 @@
 	}
 
 	function openCatalog() {
+		catSearch = '';
 		selIds = new Set(); selQtys = {};
 		for (const item of allCatalog) selQtys[item.id] = item.default_quantity || 1;
 		showCatalog = true;
@@ -78,17 +100,37 @@
 		if (next.has(id)) next.delete(id); else next.add(id);
 		selIds = next;
 	}
+	function toggleCat(catItems: typeof allCatalog) {
+		const allInCat = new Set(catItems.map((i: any) => i.id));
+		const every = [...allInCat].every((id) => selIds.has(id));
+		const next = new Set(selIds);
+		for (const id of allInCat) {
+			if (every) next.delete(id); else next.add(id);
+		}
+		selIds = next;
+	}
+	function catState(items: typeof allCatalog): 'all' | 'some' | 'none' {
+		const ids = items.map((i: any) => i.id);
+		const checked = ids.filter((id) => selIds.has(id)).length;
+		if (checked === 0) return 'none';
+		if (checked === ids.length) return 'all';
+		return 'some';
+	}
+	function indeterminate(node: HTMLInputElement, value: boolean) {
+		node.indeterminate = value;
+		return { update(v: boolean) { node.indeterminate = v; } };
+	}
 	async function importSelected() {
 		const ids = [...selIds];
 		if (ids.length === 0) return;
-		for (const id of ids) {
+		const items = ids.map((id) => {
 			const item = allCatalog.find((c: any) => c.id === id);
-			if (!item) continue;
-			await fetch(`/${trip.id}/checklist?/add`, {
-				method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: new URLSearchParams({ label: item.name, category: item.category || '', quantity: String(selQtys[id] || item.default_quantity || 1) })
-			});
-		}
+			return { label: item?.name, category: item?.category || '', quantity: selQtys[id] || item?.default_quantity || 1 };
+		});
+		await fetch(`/${trip.id}/checklist?/import`, {
+			method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ items: JSON.stringify(items) })
+		});
 		showCatalog = false; window.location.reload();
 	}
 </script>
@@ -168,17 +210,58 @@
 {#if showCatalog}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onclick={() => showCatalog = false} role="presentation">
 		<div class="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-coal-700 bg-coal-950 shadow-2xl" onclick={(e) => e.stopPropagation()} role="dialog">
-			<div class="shrink-0 px-5 pt-5">
+			<div class="shrink-0 space-y-3 px-5 pb-3 pt-5">
 				<h2 class="font-display text-lg text-coal-50">Depuis le catalogue</h2>
-				<p class="mb-4 text-xs text-coal-400">Sélectionnez les articles à ajouter</p>
+				<p class="text-xs text-coal-400">Sélectionnez les articles à ajouter</p>
+				<div class="relative">
+					<svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+					</svg>
+					<input
+						type="text"
+						bind:value={catSearch}
+						placeholder="Rechercher un article…"
+						class="w-full rounded-lg border border-coal-700 bg-coal-900 py-2.5 pl-9 pr-3 text-sm text-coal-50 outline-none placeholder:text-coal-500 focus:border-ember-500"
+					/>
+				</div>
 			</div>
 
 			{#if allCatalog.length > 0}
 				<div class="flex-1 overflow-y-auto px-5">
 					<div class="space-y-3 pb-4">
-						{#each Object.entries(catalogByCat) as [cat, catItems]}
+						{#each Object.entries(filteredCatalog) as [cat, catItems]}
+							{@const state = catState(catItems)}
+							{@const catExpanded = isSearching || expandedCats.has(cat)}
 							<div>
-								<h4 class="mb-1 text-sm font-medium text-coal-400">{cat}</h4>
+								<button
+									onclick={() => toggleCatExpanded(cat)}
+									class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-coal-800/60"
+								>
+									{#if !isSearching}
+									<input
+										type="checkbox"
+										checked={state === 'all'}
+										onchange={(e) => { e.stopPropagation(); toggleCat(catItems); }}
+										use:indeterminate={state === 'some'}
+										class="accent-ember-500 h-4 w-4 shrink-0"
+										onclick={(e) => e.stopPropagation()}
+									/>
+									{/if}
+									<h4 class="flex-1 text-sm font-medium text-coal-100">{cat}</h4>
+									<span class="text-xs text-coal-500">{catItems.length}</span>
+									<svg
+										class="h-4 w-4 text-coal-500 transition-transform {catExpanded ? 'rotate-90' : ''}"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<polyline points="9 18 15 12 9 6" />
+									</svg>
+								</button>
+								{#if catExpanded}
 								<div class="space-y-1.5">
 									{#each catItems as item}
 										<div class="flex items-center gap-2 rounded-lg border border-coal-800 p-2">
@@ -194,6 +277,7 @@
 										</div>
 									{/each}
 								</div>
+								{/if}
 							</div>
 						{/each}
 					</div>

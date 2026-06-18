@@ -35,5 +35,13 @@ export const actions = {
 		const itemId = fd.get('itemId');
 		if (!itemId) return fail(400, { error: 'Missing itemId' });
 		return cliAction('list-remove', String(itemId));
+	},
+
+	import: async ({ request, params }) => {
+		const fd = await request.formData();
+		const raw = fd.get('items');
+		if (!raw) return fail(400, { error: 'Missing items' });
+		const b64 = Buffer.from(raw.toString()).toString('base64');
+		return cliAction('list-import', params.id, b64);
 	}
 };

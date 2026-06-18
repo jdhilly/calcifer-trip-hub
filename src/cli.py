@@ -81,6 +81,27 @@ def cmd_list_remove(args):
     return {"ok": True}
 
 
+def cmd_list_import(args):
+    """Import multiple catalog items into a trip checklist (items as base64 JSON)"""
+    import base64
+    raw = base64.b64decode(args.items_b64).decode('utf-8')
+    items = json.loads(raw)
+    conn = get_db()
+    max_order = conn.execute(
+        "SELECT COALESCE(MAX(sort_order), 0) FROM lists WHERE trip_id = ?",
+        (args.trip_id,)
+    ).fetchone()[0]
+    for item in items:
+        max_order += 1
+        conn.execute(
+            "INSERT INTO lists (trip_id, category, label, quantity, sort_order) VALUES (?, ?, ?, ?, ?)",
+            (args.trip_id, item.get('category', ''), item['label'],
+             item.get('quantity', 1), max_order)
+        )
+    conn.commit()
+    return {"ok": True, "imported": len(items)}
+
+
 def cmd_journal_entries(args):
     """Get journal entries for a trip"""
     conn = get_db()
@@ -189,6 +210,11 @@ if __name__ == '__main__':
     p = sub.add_parser('list-remove')
     p.add_argument('item_id', type=int)
     p.set_defaults(func=cmd_list_remove)
+
+    p = sub.add_parser('list-import')
+    p.add_argument('trip_id')
+    p.add_argument('items_b64')
+    p.set_defaults(func=cmd_list_import)
 
     p = sub.add_parser('journal')
     p.add_argument('trip_id')
