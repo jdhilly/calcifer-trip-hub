@@ -167,38 +167,48 @@
 
 {#if showCatalog}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onclick={() => showCatalog = false} role="presentation">
-		<div class="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border border-coal-700 bg-coal-950 p-5 shadow-2xl" onclick={(e) => e.stopPropagation()} role="dialog">
-			<h2 class="font-display text-lg text-coal-50">Depuis le catalogue</h2>
-			<p class="mb-4 text-xs text-coal-400">Sélectionnez les articles à ajouter</p>
+		<div class="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-coal-700 bg-coal-950 shadow-2xl" onclick={(e) => e.stopPropagation()} role="dialog">
+			<div class="shrink-0 px-5 pt-5">
+				<h2 class="font-display text-lg text-coal-50">Depuis le catalogue</h2>
+				<p class="mb-4 text-xs text-coal-400">Sélectionnez les articles à ajouter</p>
+			</div>
+
 			{#if allCatalog.length > 0}
-				<div class="space-y-3">
-					{#each Object.entries(catalogByCat) as [cat, catItems]}
-						<div>
-							<h4 class="mb-1 text-sm font-medium text-coal-400">{cat}</h4>
-							<div class="space-y-1.5">
-								{#each catItems as item}
-									<div class="flex items-center gap-2 rounded-lg border border-coal-800 p-2">
-										<input type="checkbox" checked={selIds.has(item.id)} onchange={() => toggleSel(item.id)} class="accent-ember-500 h-4 w-4" />
-										<span class="flex-1 text-sm text-coal-100">{item.name}</span>
-										<div class="flex items-center gap-1">
-											<button onclick={() => { if ((selQtys[item.id] ?? 1) > 1) selQtys[item.id]--; }}
-												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">−</button>
-											<span class="w-6 text-center text-xs text-coal-200">{selQtys[item.id] ?? item.default_quantity ?? 1}</span>
-											<button onclick={() => selQtys[item.id] = (selQtys[item.id] ?? item.default_quantity ?? 1) + 1}
-												class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">+</button>
+				<div class="flex-1 overflow-y-auto px-5">
+					<div class="space-y-3 pb-4">
+						{#each Object.entries(catalogByCat) as [cat, catItems]}
+							<div>
+								<h4 class="mb-1 text-sm font-medium text-coal-400">{cat}</h4>
+								<div class="space-y-1.5">
+									{#each catItems as item}
+										<div class="flex items-center gap-2 rounded-lg border border-coal-800 p-2">
+											<input type="checkbox" checked={selIds.has(item.id)} onchange={() => toggleSel(item.id)} class="accent-ember-500 h-4 w-4" />
+											<span class="flex-1 text-sm text-coal-100">{item.name}</span>
+											<div class="flex items-center gap-1">
+												<button onclick={() => { if ((selQtys[item.id] ?? 1) > 1) selQtys[item.id]--; }}
+													class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">−</button>
+												<span class="w-6 text-center text-xs text-coal-200">{selQtys[item.id] ?? item.default_quantity ?? 1}</span>
+												<button onclick={() => selQtys[item.id] = (selQtys[item.id] ?? item.default_quantity ?? 1) + 1}
+													class="flex h-6 w-6 items-center justify-center rounded border border-coal-700 text-coal-400 hover:border-ember-500">+</button>
+											</div>
 										</div>
-									</div>
-								{/each}
+									{/each}
+								</div>
 							</div>
-						</div>
-					{/each}
+						{/each}
+					</div>
 				</div>
-				<div class="mt-4 flex justify-end gap-2">
-					<button onclick={() => showCatalog = false} class="rounded-lg border border-coal-700 px-4 py-2 text-sm text-coal-300 hover:border-ember-500 hover:text-ember-400">Annuler</button>
-					<Button onclick={importSelected} disabled={selIds.size === 0}>Importer ({selIds.size})</Button>
+
+				<div class="sticky bottom-0 shrink-0 border-t border-coal-800 bg-coal-950 px-5 py-4">
+					<div class="flex justify-end gap-2">
+						<button onclick={() => showCatalog = false} class="rounded-lg border border-coal-700 px-4 py-2 text-sm text-coal-300 hover:border-ember-500 hover:text-ember-400">Annuler</button>
+						<Button onclick={importSelected} disabled={selIds.size === 0}>Importer ({selIds.size})</Button>
+					</div>
 				</div>
 			{:else}
-				<p class="py-6 text-center text-sm text-coal-500">Catalogue vide.</p>
+				<div class="flex-1 px-5 pb-4">
+					<p class="py-6 text-center text-sm text-coal-500">Catalogue vide.</p>
+				</div>
 			{/if}
 		</div>
 	</div>
