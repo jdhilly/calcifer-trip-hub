@@ -33,6 +33,19 @@ def cmd_trip_detail(args):
     return trip
 
 
+def cmd_trip_create(args):
+    conn = get_db()
+    import uuid
+    trip_id = args.trip_id or str(uuid.uuid4())[:8]
+    conn.execute(
+        "INSERT INTO trips (id, destination, start_date, end_date, type, participants) VALUES (?, ?, ?, ?, ?, ?)",
+        (trip_id, args.destination, args.start_date, args.end_date, args.type or '',
+         args.participants or '[]')
+    )
+    conn.commit()
+    return {"ok": True, "trip_id": trip_id}
+
+
 def cmd_catalog(args):
     conn = get_db()
     rows = conn.execute("SELECT * FROM catalog ORDER BY category, sort_order").fetchall()
@@ -236,6 +249,15 @@ if __name__ == '__main__':
     p = sub.add_parser('trip')
     p.add_argument('trip_id')
     p.set_defaults(func=cmd_trip_detail)
+
+    p = sub.add_parser('trip-create')
+    p.add_argument('--trip-id', default=None)
+    p.add_argument('--destination', required=True)
+    p.add_argument('--start-date', required=True)
+    p.add_argument('--end-date', required=True)
+    p.add_argument('--type', default=None)
+    p.add_argument('--participants', default=None)
+    p.set_defaults(func=cmd_trip_create)
 
     p = sub.add_parser('catalog')
     p.set_defaults(func=cmd_catalog)
