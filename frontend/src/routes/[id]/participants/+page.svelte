@@ -4,8 +4,13 @@
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
-	let ppl = $state(data.participants);
 	let tripId = $derived(trip.id);
+
+	// Pre-populate presence & dob on participants (Svelte 5 can't add new properties after $state)
+	let ppl = $state(data.participants.map((p: any) => {
+		if (!p.presence?.length) p.presence = data.trip.start_date ? [{ start: data.trip.start_date, end: data.trip.end_date }] : [];
+		return p;
+	}));
 
 	let days = $derived.by(() => {
 		if (!trip.start_date || !trip.end_date) return [];
@@ -15,9 +20,8 @@
 		return d;
 	});
 
-	function ensure(p: any) { if (!p.presence?.length) p.presence = trip.start_date ? [{ start: trip.start_date, end: trip.end_date }] : []; }
 	function present(p: any, day: Date): boolean {
-		const ds = day.toISOString().slice(0, 10); ensure(p);
+		const ds = day.toISOString().slice(0, 10);
 		for (const pr of p.presence) if (ds >= pr.start && ds <= pr.end) return true;
 		if (p.return_trips) for (const rt of p.return_trips) if (ds >= rt.start && ds <= rt.end) return false;
 		return false;
@@ -36,7 +40,7 @@
 	}
 
 	function onDrop(e: DragEvent, idx: number, day: Date) {
-		e.preventDefault(); const p = ppl[idx]; if (!p) return; ensure(p);
+		e.preventDefault(); const p = ppl[idx]; if (!p) return;
 		const ds = day.toISOString().slice(0, 10); let f = -1;
 		for (let i = 0; i < p.presence.length; i++) { if (ds >= p.presence[i].start && ds <= p.presence[i].end) { f = i; break; } }
 		if (f >= 0 && p.presence.length > 1) {
@@ -62,8 +66,9 @@
 	let nN = $state(''), nR = $state('adulte'), nD = $state('');
 	function add() {
 		if (!nN.trim()) return;
-		ppl = [...ppl, {name:nN.trim(), role:nR, presence:trip.start_date?[{start:trip.start_date,end:trip.end_date}]:[]}];
-		if (nD) ppl[ppl.length-1].dob = nD;
+		const newP: any = {name:nN.trim(), role:nR, presence:trip.start_date?[{start:trip.start_date,end:trip.end_date}]:[]};
+		if (nD) newP.dob = nD;
+		ppl = [...ppl, newP];
 		save(); showAdd=false; nN=''; nD='';
 	}
 	function rem(idx: number) { if (!confirm(`Supprimer ${ppl[idx].name} ?`)) return; ppl=ppl.filter((_:any,i:number)=>i!==idx); save(); }
@@ -108,7 +113,6 @@
 					</div>
 					<button onclick={() => rem(idx)} class="text-coal-600 hover:text-red-400"><X size={14} /></button>
 				</div>
-				{ensure(p)}
 				<div class="flex flex-wrap gap-2">
 					{#each p.presence as pr, prIdx}
 						<div class="flex items-center gap-1 rounded bg-ember-500/10 px-2 py-1 text-xs">
@@ -118,7 +122,7 @@
 							{#if p.presence.length > 1}<button onclick={() => { p.presence.splice(prIdx,1); ppl=[...ppl]; save(); }} class="text-coal-500 hover:text-red-400">✕</button>{/if}
 						</div>
 					{/each}
-					<button onclick={() => { ensure(p); p.presence.push({start:trip.start_date||'',end:trip.end_date||''}); ppl=[...ppl]; save(); }}
+					<button onclick={() => { p.presence.push({start:trip.start_date||'',end:trip.end_date||''}); ppl=[...ppl]; save(); }}
 						class="rounded border border-coal-700 bg-coal-900 px-2 py-1 text-xs text-coal-400 hover:border-ember-500 hover:text-ember-400">+ Bloc</button>
 				</div>
 			</div>
