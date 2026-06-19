@@ -115,7 +115,22 @@
 		p.presence.sort((a: any, b: any) => a.start.localeCompare(b.start));
 		save();
 	}
-	function save() { fetch('/'+tripId+'/participants?/update', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({participants: JSON.stringify(ppl)}) }); }
+	function save() {
+		// Build plain objects to avoid Svelte 5 $state proxy issues with JSON.stringify
+		const data = ppl.map((p: any) => {
+			const o: Record<string, any> = { name: p.name, role: p.role };
+			if (p.dob) o.dob = p.dob;
+			if (p.birthDate) o.birthDate = p.birthDate;
+			o.presence = (p.presence || []).map((pr: any) => ({ start: pr.start, end: pr.end }));
+			if (p.return_trips) o.return_trips = p.return_trips;
+			return o;
+		});
+		fetch('/' + tripId + '/participants?/update', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+			body: new URLSearchParams({ participants: JSON.stringify(data) })
+		});
+	}
 
 	let showAdd = $state(false);
 	let nN = $state(''), nR = $state('adulte'), nD = $state('');
