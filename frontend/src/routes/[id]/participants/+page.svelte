@@ -40,6 +40,12 @@
 		collapsed = s;
 	}
 
+	function addDays(dateStr: string, n: number): string {
+		const d = new Date(dateStr + 'T12:00:00');
+		d.setDate(d.getDate() + n);
+		return d.toISOString().slice(0, 10);
+	}
+
 	let days = $derived.by(() => {
 		if (!trip.start_date || !trip.end_date) return [];
 		const s = new Date(trip.start_date + 'T12:00:00'), e = new Date(trip.end_date + 'T12:00:00');
@@ -67,25 +73,46 @@
 		return a < 1 ? `${Math.floor((new Date(trip.start_date+'T12:00:00').getTime()-new Date(d+'T12:00:00').getTime())/(1000*60*60*24*30.44))} mois` : `${a} ans`;
 	}
 
-	function onDrop(e: DragEvent, idx: number, day: Date) {
-		e.preventDefault(); const p = ppl[idx]; if (!p) return;
-		const ds = day.toISOString().slice(0, 10); let f = -1;
-		for (let i = 0; i < p.presence.length; i++) { if (ds >= p.presence[i].start && ds <= p.presence[i].end) { f = i; break; } }
-		if (f >= 0 && p.presence.length > 1) {
-			const b = p.presence[f];
-			if (ds === b.start) { const d2 = new Date(ds+'T12:00:00'); d2.setDate(d2.getDate()+1); b.start = d2.toISOString().slice(0,10); }
-			else if (ds === b.end) { const d2 = new Date(ds+'T12:00:00'); d2.setDate(d2.getDate()-1); b.end = d2.toISOString().slice(0,10); }
-			else { const n = { start: new Date(new Date(ds+'T12:00:00').getTime()+86400000).toISOString().slice(0,10), end: b.end }; const d2 = new Date(ds+'T12:00:00'); d2.setDate(d2.getDate()-1); b.end = d2.toISOString().slice(0,10); p.presence.splice(f+1, 0, n); }
-		} else if (f < 0) {
-			let m = false;
-			for (const pr of p.presence) {
-				const ad = new Date(pr.end+'T12:00:00'); ad.setDate(ad.getDate()+1);
-				if (ds === ad.toISOString().slice(0,10)) { pr.end = ds; m = true; break; }
-				const sd = new Date(pr.start+'T12:00:00'); sd.setDate(sd.getDate()-1);
-				if (ds === sd.toISOString().slice(0,10)) { pr.start = ds; m = true; break; }
-			}
-			if (!m) p.presence.push({ start: ds, end: ds });
+	function toggleDay(p: any, day: Date) {
+		const ds = day.toISOString().slice(0, 10);
+		// Find the presence block that contains this day
+		let found = -1;
+		for (let i = 0; i < p.presence.length; i++) {
+			if (ds >= p.presence[i].start && ds <= p.presence[i].end) { found = i; break; }
 		}
+
+		if (found >= 0) {
+			// Day is present → remove it
+			const b = p.presence[found];
+			if (b.start === b.end) {
+				// Single-day block → remove entirely
+				p.presence.splice(found, 1);
+			} else if (ds === b.start) {
+				// First day of block → shift start forward
+				b.start = addDays(ds, 1);
+			} else if (ds === b.end) {
+				// Last day of block → shift end backward
+				b.end = addDays(ds, -1);
+			} else {
+				// Middle of block → split into two
+				const n = { start: addDays(ds, 1), end: b.end };
+				b.end = addDays(ds, -1);
+				p.presence.splice(found + 1, 0, n);
+			}
+		} else {
+			// Day is absent → add it
+			// Try to merge with adjacent blocks
+			let merged = false;
+			for (const pr of p.presence) {
+				if (ds === addDays(pr.end, 1)) { pr.end = ds; merged = true; break; }
+				if (ds === addDays(pr.start, -1)) { pr.start = ds; merged = true; break; }
+			}
+			if (!merged) {
+				p.presence.push({ start: ds, end: ds });
+			}
+		}
+		// Sort blocks by start date
+		p.presence.sort((a: any, b: any) => a.start.localeCompare(b.start));
 		save();
 	}
 	function save() { fetch('/'+tripId+'/participants?/update', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: new URLSearchParams({participants: JSON.stringify(ppl)}) }); }
@@ -171,7 +198,7 @@
 
 	{#if days.length > 0 && ppl.length > 0}
 		<h2 class="mb-3 font-display text-lg text-coal-300">Timeline</h2>
-		<p class="mb-2 text-xs text-coal-500">Glisse pour ajouter/retirer la présence</p>
+		<p class="mb-2 text-xs text-coal-500">Clique sur un jour pour ajouter/retirer la présence</p>
 		<div class="overflow-x-auto">
 			<table class="w-full min-w-[500px] text-sm">
 				<thead><tr><th class="sticky left-0 bg-coal-950 pr-3 text-left text-xs text-coal-500">Participant</th>
@@ -181,9 +208,9 @@
 						<tr class="border-t border-coal-800">
 							<td class="sticky left-0 bg-coal-950 pr-3 py-2 text-sm text-coal-100">{p.name}</td>
 							{#each days as day}
-								<td class="px-1 py-2 text-center" ondragover={(e) => e.preventDefault()} ondrop={(e) => onDrop(e, pIdx, day)}>
-									<span draggable="true" ondragstart={(e) => { if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; }}
-										class="inline-block h-6 w-6 cursor-grab rounded-full transition-transform hover:scale-125 active:cursor-grabbing {present(p, day) ? 'bg-ember-500' : 'bg-coal-700'}"></span>
+								<td class="px-1 py-2 text-center">
+									<button onclick={() => toggleDay(p, day)}
+										class="inline-block h-6 w-6 rounded-full border-0 transition-transform hover:scale-125 active:scale-95 {present(p, day) ? 'bg-ember-500' : 'bg-coal-700'}"></button>
 								</td>
 							{/each}
 						</tr>
