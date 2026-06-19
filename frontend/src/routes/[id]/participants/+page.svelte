@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PageHeader, Button } from '@calcifer/ui';
-	import { Plus, X, User, Baby } from '@lucide/svelte/icons';
+	import { Plus, X, User, Baby, ChevronRight } from '@lucide/svelte/icons';
 
 	let { data } = $props();
 	let trip = $derived(data.trip);
@@ -11,6 +11,34 @@
 		if (!p.presence?.length) p.presence = data.trip.start_date ? [{ start: data.trip.start_date, end: data.trip.end_date }] : [];
 		return p;
 	}));
+
+	// Group by role
+	let groups = $derived.by(() => {
+		const order = ['adulte', 'enfant', 'bebe'];
+		const labels: Record<string, string> = { adulte: 'Adultes', enfant: 'Enfants', bebe: 'Bébé' };
+		const icons: Record<string, any> = { adulte: User, enfant: Baby, bebe: Baby };
+		const map = new Map<string, any[]>();
+		for (const p of ppl) {
+			const key = p.role || 'adulte';
+			if (!map.has(key)) map.set(key, []);
+			map.get(key)!.push(p);
+		}
+		return order.filter(k => map.has(k)).map(k => ({
+			key: k,
+			label: labels[k] || k,
+			icon: icons[k] || User,
+			people: map.get(k)!
+		}));
+	});
+
+	// Set of collapsed groups (by role key)
+	let collapsed = $state<Set<string>>(new Set());
+
+	function toggleGroup(key: string) {
+		const s = new Set(collapsed);
+		if (s.has(key)) s.delete(key); else s.add(key);
+		collapsed = s;
+	}
 
 	let days = $derived.by(() => {
 		if (!trip.start_date || !trip.end_date) return [];
@@ -97,34 +125,46 @@
 		</div>
 	{/if}
 
-	<div class="mb-8 space-y-3">
-		{#each ppl as p, idx}
-			<div class="rounded-2xl border border-coal-800 bg-coal-900/55 p-4">
-				<div class="mb-2 flex items-center justify-between">
-					<div class="flex items-center gap-2">
-						{#if p.role === 'adulte'}
-							<User size={18} class="text-ember-400" />
-						{:else}
-							<Baby size={18} class="text-ember-400" />
-						{/if}
-						<h3 class="font-semibold text-coal-50">{p.name}</h3>
-						{#if age(p)}<span class="rounded-full bg-ember-500/15 px-2 py-0.5 text-xs text-ember-400">{age(p)}</span>{/if}
-						<span class="text-xs text-coal-500 capitalize">· {p.role}</span>
+	<div class="mb-8 space-y-4">
+		{#each groups as g}
+			<div class="rounded-2xl border border-coal-800 bg-coal-900/55 overflow-hidden">
+				<button onclick={() => toggleGroup(g.key)}
+					class="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-coal-800/40">
+					<ChevronRight size={16} class="shrink-0 text-coal-500 transition-transform {collapsed.has(g.key) ? '' : 'rotate-90'}" />
+					<g.icon size={16} class="text-ember-400" />
+					<span class="font-display text-sm text-coal-200">{g.label}</span>
+					<span class="ml-auto text-xs text-coal-500">{g.people.length}</span>
+				</button>
+				{#if !collapsed.has(g.key)}
+					<div class="space-y-3 px-4 pb-4">
+						{#each g.people as p, idx}
+							{@const globalIdx = ppl.indexOf(p)}
+							<div class="rounded-xl border border-coal-700/60 bg-coal-900/40 p-3">
+								<div class="mb-1.5 flex items-center justify-between">
+									<div class="flex items-center gap-1.5">
+										<g.icon size={15} class="text-ember-400 shrink-0" />
+										<h3 class="text-sm font-semibold text-coal-50">{p.name}</h3>
+										{#if age(p)}<span class="rounded-full bg-ember-500/15 px-1.5 py-0.5 text-[10px] text-ember-400">{age(p)}</span>{/if}
+										<span class="text-[10px] text-coal-500 capitalize">· {p.role}</span>
+									</div>
+									<button onclick={() => rem(globalIdx)} class="text-coal-600 hover:text-red-400"><X size={12} /></button>
+								</div>
+								<div class="flex flex-wrap gap-1.5">
+									{#each p.presence as pr, prIdx}
+										<div class="flex items-center gap-1 rounded bg-ember-500/10 px-1.5 py-1 text-[11px]">
+											<input type="date" bind:value={pr.start} onchange={save} class="w-24 rounded border border-coal-700 bg-coal-900 px-1 py-0.5 text-[11px] text-coal-50" />
+											<span class="text-coal-500">→</span>
+											<input type="date" bind:value={pr.end} onchange={save} class="w-24 rounded border border-coal-700 bg-coal-900 px-1 py-0.5 text-[11px] text-coal-50" />
+											{#if p.presence.length > 1}<button onclick={() => { p.presence.splice(prIdx,1); ppl=[...ppl]; save(); }} class="text-coal-500 hover:text-red-400">✕</button>{/if}
+										</div>
+									{/each}
+									<button onclick={() => { p.presence.push({start:trip.start_date||'',end:trip.end_date||''}); ppl=[...ppl]; save(); }}
+										class="rounded border border-coal-700 bg-coal-900 px-1.5 py-1 text-[11px] text-coal-400 hover:border-ember-500 hover:text-ember-400">+ Bloc</button>
+								</div>
+							</div>
+						{/each}
 					</div>
-					<button onclick={() => rem(idx)} class="text-coal-600 hover:text-red-400"><X size={14} /></button>
-				</div>
-				<div class="flex flex-wrap gap-2">
-					{#each p.presence as pr, prIdx}
-						<div class="flex items-center gap-1 rounded bg-ember-500/10 px-2 py-1 text-xs">
-							<input type="date" bind:value={pr.start} onchange={save} class="w-28 rounded border border-coal-700 bg-coal-900 px-1 py-0.5 text-xs text-coal-50" />
-							<span class="text-coal-500">→</span>
-							<input type="date" bind:value={pr.end} onchange={save} class="w-28 rounded border border-coal-700 bg-coal-900 px-1 py-0.5 text-xs text-coal-50" />
-							{#if p.presence.length > 1}<button onclick={() => { p.presence.splice(prIdx,1); ppl=[...ppl]; save(); }} class="text-coal-500 hover:text-red-400">✕</button>{/if}
-						</div>
-					{/each}
-					<button onclick={() => { p.presence.push({start:trip.start_date||'',end:trip.end_date||''}); ppl=[...ppl]; save(); }}
-						class="rounded border border-coal-700 bg-coal-900 px-2 py-1 text-xs text-coal-400 hover:border-ember-500 hover:text-ember-400">+ Bloc</button>
-				</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
