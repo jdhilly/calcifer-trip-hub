@@ -17,7 +17,7 @@ export const actions = {
 		if (!raw) return fail(400, { error: 'Missing participants data' });
 		// Validate JSON
 		try { JSON.parse(raw.toString()); } catch {
-			return fail(400, { error: 'Invalid JSON' });
+			return fail(400, { error: 'Invalid JSON', received: raw.toString().slice(0, 200) });
 		}
 		return cliAction('participants-update', params.id, raw.toString());
 	}

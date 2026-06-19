@@ -194,9 +194,34 @@ def cmd_journal_delete(args):
 
 def cmd_participants_update(args):
     """Update participants JSON for a trip"""
+    import json
     conn = get_db()
+    # Sanitize: if the JSON is invalid, try to fix unquoted keys/values
+    raw = args.json_data
+    try:
+        json.loads(raw)
+    except json.JSONDecodeError:
+        # Repair: wrap unquoted keys and string values with quotes
+        import re
+        # Wrap unquoted keys
+        repaired = re.sub(
+            r'(?<=[{,])\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*',
+            r'"\1": ',
+            raw
+        )
+        # Wrap unquoted string values (any value that isn't { [ " true false null)
+        repaired = re.sub(
+            r':\s*((?![{\["tnf])[^\s,}\]]+)\s*([,}\]])',
+            r': "\1"\2',
+            repaired
+        )
+        try:
+            json.loads(repaired)
+            raw = repaired
+        except json.JSONDecodeError:
+            return {"ok": False, "error": f"Could not repair JSON. Fatal."}
     conn.execute("UPDATE trips SET participants = ?, updated_at = datetime('now') WHERE id = ?",
-                 (args.json_data, args.trip_id))
+                 (raw, args.trip_id))
     conn.commit()
     return {"ok": True}
 

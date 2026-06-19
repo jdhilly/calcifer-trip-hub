@@ -116,19 +116,21 @@
 		save();
 	}
 	function save() {
-		// Build plain objects to avoid Svelte 5 $state proxy issues with JSON.stringify
-		const data = ppl.map((p: any) => {
-			const o: Record<string, any> = { name: p.name, role: p.role };
-			if (p.dob) o.dob = p.dob;
-			if (p.birthDate) o.birthDate = p.birthDate;
-			o.presence = (p.presence || []).map((pr: any) => ({ start: pr.start, end: pr.end }));
-			if (p.return_trips) o.return_trips = p.return_trips;
-			return o;
-		});
+		// Deep-clone from $state proxy to plain objects via JSON round-trip
+		const json = JSON.stringify(ppl.map((p: any) => ({
+			name: '' + p.name,
+			role: '' + p.role,
+			...(p.dob ? { dob: '' + p.dob } : {}),
+			...(p.birthDate ? { birthDate: '' + p.birthDate } : {}),
+			presence: (p.presence || []).map((pr: any) => ({ start: '' + pr.start, end: '' + pr.end })),
+			...(p.return_trips ? { return_trips: p.return_trips } : {})
+		})));
+		// Validate JSON before sending
+		try { JSON.parse(json); } catch { return; }
 		fetch('/' + tripId + '/participants?/update', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ participants: JSON.stringify(data) })
+			body: new URLSearchParams({ participants: json })
 		});
 	}
 
